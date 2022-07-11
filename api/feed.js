@@ -23,5 +23,5 @@ export default async (req, res) => {
     }
   )
 
-  res.json(substackPosts)
+  res.json(substackPosts.data.posts)
 }
