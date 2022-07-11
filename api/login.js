@@ -2,7 +2,7 @@ import getLoginResponse from '../lib/ss-login'
 
 export default async (req, res) => {
   const loginResponse = await getLoginResponse
-  console.log(loginResponse)
+  // console.debug(loginResponse)
   const cookies = loginResponse.headers['set-cookie']
 
   // cache for 24 hours, refresh in BG up to 30 days
