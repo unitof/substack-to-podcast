@@ -31,6 +31,7 @@ export default async (req, res) => {
     description: 'Totally unofficial feed generated for personal use in podcast players',
     author: 'Jacob ¶. Ford',
     siteUrl: 'https://substackwoofer.vercel.app',
+    imageUrl: substackPosts.data.posts[0].cover_image // dumb but i want an image
   })
 
   substackPosts.data.posts.filter(post => post.audio_items).forEach(post => {
