@@ -4,7 +4,7 @@ import { Podcast } from 'podcast'
 export default async (req, res) => {
   let substackSidCookie = ''
 
-  console.log(req.headers['User-Agent'])
+  console.log(req.headers['user-agent'])
 
   if (process.env.SUBSTACK_SID) {
     // prevent 429 errors while developing
