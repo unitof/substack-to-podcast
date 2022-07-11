@@ -1,4 +1,5 @@
 const axios = require('axios')
+import { Podcast } from 'podcast'
 
 export default async (req, res) => {
   let substackSidCookie = ''
@@ -23,5 +24,26 @@ export default async (req, res) => {
     }
   )
 
-  res.json(substackPosts.data.posts)
+  const feed = new Podcast({
+    title: 'My Substack Audio Feed',
+    description: 'Totally unofficial feed generated for personal use in podcast players',
+    author: 'Jacob ¶. Ford',
+    siteUrl: 'https://substackwoofer.vercel.app',
+  })
+
+  substackPosts.data.posts.filter(post => post.audio_items).forEach(post => {
+    feed.addItem({
+      title: post.title,
+      description: post.description,
+      url: post.canonical_url,
+      guid: post.id,
+      author: post.publishedBylines[0].name,
+      date: post.post_date,
+      enclosure: {
+        url: post.audio_items[0].audio_url
+      }
+    })
+  })
+
+  res.end(feed.buildXml('\t'))
 }
