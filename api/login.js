@@ -1,8 +1,8 @@
-import loginReponse from '../lib/ss-login'
+import getLoginResponse from '../lib/ss-login'
 
 export default async (req, res) => {
-  await loginReponse
-  console.log(loginReponse)
-  const cookies = loginReponse.headers['set-cookie']
+  const loginResponse = await getLoginResponse
+  console.log(loginResponse)
+  const cookies = loginResponse.headers['set-cookie']
   res.end(JSON.stringify(cookies))
 }
