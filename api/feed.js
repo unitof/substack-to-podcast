@@ -8,6 +8,7 @@ export default async (req, res) => {
 
   if (process.env.SUBSTACK_SID) {
     // prevent 429 errors while developing
+    console.warn('Using process.env.SUBSTACK_SID to avoid SS ratelimits')
     substackSidCookie = process.env.SUBSTACK_SID
   } else {
     // use URL to take advantage of caching
