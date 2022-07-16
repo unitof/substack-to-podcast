@@ -14,7 +14,7 @@ export default async (req, res) => {
     const user = auth(req)
     if (!user) {
       res.setHeader('WWW-Authenticate', 'Basic realm="Substack credenials"')
-      res.end(401)
+      res.status(401).end()
     } else {
       // use URL to take advantage of caching
       const loginCookies = await axios.get(`https://${process.env.VERCEL_URL}/api/login?ss_email=${user.name}&ss_password=${user.pass}`)
