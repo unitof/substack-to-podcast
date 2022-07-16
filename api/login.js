@@ -4,6 +4,8 @@ export default async (req, res) => {
   const loginResponse = await getLoginResponse
   .catch(loginError => {
     res.json(loginError)
+    console.log(loginError)
+    return
   })
   // console.debug(loginResponse)
   const cookies = loginResponse.headers['set-cookie']
