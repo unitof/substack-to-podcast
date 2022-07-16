@@ -1,4 +1,5 @@
 const axios = require('axios')
+const auth = require('basic-auth')
 import { Podcast } from 'podcast'
 
 export default async (req, res) => {
@@ -10,10 +11,15 @@ export default async (req, res) => {
     // prevent 429 errors while developing
     substackSidCookie = process.env.SUBSTACK_SID
   } else {
-    // use URL to take advantage of caching
-    const loginCookies = await axios.get(`http://${process.env.VERCEL_URL}/api/login`)
-    console.log('loginCookies', loginCookies)
-    substackSidCookie = loginCookies.data.find(cookie => cookie.startsWith('substack.sid='))
+    const user = auth(req)
+    if (!user) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Substack credenials"')
+      res.end(401)
+    } else {
+      // use URL to take advantage of caching
+      const loginCookies = await axios.get(`https://${process.env.VERCEL_URL}/api/login?ss_email=${user.name}&ss_password=${user.pass}`)
+      substackSidCookie = loginCookies.data.find(cookie => cookie.startsWith('substack.sid='))
+    }
   }
 
   const substackPosts = await axios.get(

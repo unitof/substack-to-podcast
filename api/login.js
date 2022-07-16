@@ -1,7 +1,10 @@
 import getLoginResponse from '../lib/ss-login'
 
 export default async (req, res) => {
-  const loginResponse = await getLoginResponse
+  const loginResponse = await getLoginResponse({
+    substackEmail: res.query.ss_email || process.env.SUBSTACK_EMAIL,
+    substackPassword: req.query.ss_password || process.env.SUBSTACK_PASSWORD
+  })
   // console.debug(loginResponse)
   const cookies = loginResponse.headers['set-cookie']
 
