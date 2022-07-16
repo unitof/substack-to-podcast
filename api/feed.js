@@ -17,7 +17,12 @@ export default async (req, res) => {
       res.status(401).end()
     } else {
       // use URL to take advantage of caching
-      const loginCookies = await axios.get(`https://${process.env.VERCEL_URL}/api/login?ss_email=${user.name}&ss_password=${user.pass}`)
+      const loginCookies = await axios.get(`http://${process.env.VERCEL_URL}/api/login`, {
+        data: {
+          ssEmail: user.name,
+          ssPassword: user.pass
+        }
+      })
       substackSidCookie = loginCookies.data.find(cookie => cookie.startsWith('substack.sid='))
     }
   }
