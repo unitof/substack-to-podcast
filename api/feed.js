@@ -49,5 +49,6 @@ export default async (req, res) => {
     })
   })
 
+  res.setHeader('Content-Type', 'application/rss+xml')
   res.end(feed.buildXml('\t'))
 }
