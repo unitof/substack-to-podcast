@@ -2,6 +2,9 @@ import getLoginResponse from '../lib/ss-login'
 
 export default async (req, res) => {
   const loginResponse = await getLoginResponse
+  .catch(loginError => {
+    res.json(loginError)
+  })
   // console.debug(loginResponse)
   const cookies = loginResponse.headers['set-cookie']
 
