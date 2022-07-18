@@ -15,7 +15,7 @@ export default async (req, res) => {
   }
 
   catch (loginError) {
-    console.log('Substack login API returned:', loginError)
+    console.log('Substack login API returned:', loginResponse)
     res.json(loginError)
   }
 }
