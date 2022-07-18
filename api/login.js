@@ -2,7 +2,6 @@ import getLoginResponse from '../lib/ss-login'
 
 export default async (req, res) => {
   try {
-    console.log('req.body', req.body)//debug
     const loginResponse = await getLoginResponse({
       substackEmail: req.body.ssEmail || process.env.SUBSTACK_EMAIL,
       substackPassword: req.body.ssPassword || process.env.SUBSTACK_PASSWORD
@@ -16,7 +15,7 @@ export default async (req, res) => {
   }
 
   catch (loginError) {
-    console.log('Login error', loginError)
+    console.log('Substack login API returned:', loginError)
     res.json(loginError)
   }
 }
