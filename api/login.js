@@ -6,7 +6,9 @@ export default async (req, res) => {
       substackEmail: req.body.ssEmail || process.env.SUBSTACK_EMAIL,
       substackPassword: req.body.ssPassword || process.env.SUBSTACK_PASSWORD
     })
-    // console.debug(loginResponse)
+
+    console.log('Substack login API returned:', loginResponse)
+
     const cookies = loginResponse.headers['set-cookie']
 
     // cache for 24 hours, refresh in BG up to 30 days
@@ -15,7 +17,6 @@ export default async (req, res) => {
   }
 
   catch (loginError) {
-    console.log('Substack login API returned:', loginResponse)
-    res.json(loginError)
+    res.json(loginError) //TODO: this isn't really right, should make 401 not reject?
   }
 }
