@@ -1,4 +1,24 @@
 {
+  "name": "substack-to-podcast",
+  "version": "1.0.0",
+  "description": "Personal Substack feed to audio podcast feed of Substack-generated TTS",
+  "homepage": "https://github.com/unitof/substack-to-podcast#readme",
+  "bugs": {
+    "url": "https://github.com/unitof/substack-to-podcast/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unitof/substack-to-podcast.git"
+  },
+  "license": "ISC",
+  "author": "Jacob Ford",
+  "main": "api/feed.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "next lint"
+  },
   "dependencies": {
     "axios": "^0.27.2",
     "basic-auth": "^2.0.1",
