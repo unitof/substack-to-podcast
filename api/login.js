@@ -16,7 +16,7 @@ export default async (req, res) => {
   }
 
   catch (loginError) {
-    console.error(loginError)
+    console.log('Login error', loginError)
     res.json(loginError)
   }
 }
