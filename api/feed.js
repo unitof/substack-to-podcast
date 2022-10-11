@@ -43,7 +43,8 @@ export default async (req, res) => {
       author: post.publishedBylines[0].name,
       date: post.post_date,
       enclosure: {
-        url: post.audio_items[0].audio_url
+        url: post.audio_items[0].audio_url,
+        type: 'audio/mpeg'
       },
       image: post.cover_image
     })
