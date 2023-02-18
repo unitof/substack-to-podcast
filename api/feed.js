@@ -27,7 +27,7 @@ export default async (req, res) => {
   )
   
 	console.log('FROM SUBSTACK:')
-	console.log(substackPosts)
+	console.log(substackPosts.data)
 
   const feed = new Podcast({
     title: 'My Substack Audio Feed',
