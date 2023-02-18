@@ -26,9 +26,8 @@ export default async (req, res) => {
     }
   )
   
-  if (substackPosts.error) {
-		console.error(substackPosts.error)
-	}
+	console.log('FROM SUBSTACK:')
+	console.log(substackPosts.error)
 
   const feed = new Podcast({
     title: 'My Substack Audio Feed',
