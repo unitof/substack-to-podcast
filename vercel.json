@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "README.md"
+    }
+  ],
   "github": {
     "silent": true
   }
