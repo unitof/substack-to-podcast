@@ -34,22 +34,24 @@ export default async (req, res) => {
     description: 'Totally unofficial feed generated for personal use in podcast players',
     author: 'Jacob ¶. Ford',
     siteUrl: 'https://substackwoofer.vercel.app',
-    imageUrl: substackPosts.data.posts[0].cover_image // dumb but i want an image
+    imageUrl: substackPosts.data.items[0].cover_photo_url // dumb but i want an image
   })
 
-  substackPosts.data.posts.filter(post => post.audio_items).forEach(post => {
+  substackPosts.data.items.filter(post => post.audio_url).forEach(post => {
     feed.addItem({
       title: post.title,
       description: post.description,
       url: post.canonical_url,
       guid: post.id,
-      author: post.publishedBylines[0].name,
+      author: Array.isArray(post.published_bylines)
+        ? post.published_bylines[0].name
+        : post.publisher_name,
       date: post.post_date,
       enclosure: {
-        url: post.audio_items[0].audio_url,
+        url: post.audio_url,
         type: 'audio/mpeg'
       },
-      image: post.cover_image
+      image: post.cover_photo_url
     })
   })
 
