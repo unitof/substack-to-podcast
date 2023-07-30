@@ -18,7 +18,7 @@ export default async (req, res) => {
 
   const substackPosts = await axios.get(
     // page 0 = latest 12 posts
-    'https://api.substack.com/api/v1/inbox/posts?page=0',
+    'https://api.substack.com/api/v1/inbox_v2/updates?page=0',
     {
       headers: {
         Cookie: substackSidCookie
