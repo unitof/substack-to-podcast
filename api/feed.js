@@ -55,6 +55,6 @@ export default async (req, res) => {
     })
   })
 
-  res.setHeader('Content-Type', 'application/rss+xml')
+  res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
   res.end(feed.buildXml('\t'))
 }
