@@ -43,7 +43,7 @@ export default async (req, res) => {
       title: post.title,
       description: post.detail_view_subtitle,
       url: post.web_url,
-      guid: post.id,
+      guid: post.uuid,
       author: Array.isArray(post.published_bylines)
         ? post.published_bylines[0].name
         : post.publisher_name,
