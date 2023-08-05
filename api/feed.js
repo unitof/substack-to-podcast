@@ -1,4 +1,3 @@
-const moment = require('moment')
 const axios = require('axios')
 import { Podcast } from 'podcast'
 
@@ -19,7 +18,7 @@ export default async (req, res) => {
 
   const substackPosts = await axios.get(
     // page 0 = latest 12 posts
-    `https://api.substack.com/api/v1/inbox_v2/updates?after=${moment().subtract(2, 'days').format('YYYY-MM-DD')}`,
+    'https://api.substack.com/api/v1/inbox_v2',
     {
       headers: {
         Cookie: substackSidCookie
