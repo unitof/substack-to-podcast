@@ -46,7 +46,7 @@ export default async (req, res) => {
       author: Array.isArray(post.published_bylines)
         ? post.published_bylines[0].name
         : post.publisher_name,
-      date: post.post_date,
+      date: post.created_at,
       enclosure: {
         url: post.audio_url,
         type: 'audio/mpeg'
