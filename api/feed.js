@@ -38,14 +38,15 @@ export default async (req, res) => {
   })
 
   substackPosts.data.items.filter(post => post.audio_url).forEach(post => {
+    console.log('post.published_bylines[0].name', post.published_bylines[0])
     console.log('post.published_bylines[0].name', post.published_bylines[0].name)
     feed.addItem({
       title: `${post.publisher_name}: ${post.title}`,
       description: post.detail_view_subtitle,
       url: post.web_url,
       guid: post.uuid,
-      author: Array.isArray(post.published_bylines)
-        ? post.published_bylines[0].name
+      author: Array.isArray(post.authors)
+        ? post.authors.join(' & ')
         : post.publisher_name,
       date: post.created_at,
       enclosure: {
