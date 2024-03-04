@@ -46,7 +46,7 @@ export default async (req, res) => {
       url: post.web_url,
       guid: post.uuid,
       author: Array.isArray(post.published_bylines)
-        ? post.published_bylines[0].name
+        ? post.published_bylines[0]?.name
         : post.publisher_name,
       date: post.created_at,
       enclosure: {
