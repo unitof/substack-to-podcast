@@ -41,7 +41,7 @@ export default async (req, res) => {
     console.log('post', post)
     feed.addItem({
       title: `${post.publisher_name}: ${post.title}`,
-      description: "post.detail_view_subtitle\n\npost.web_url",
+      description: `${post.detail_view_subtitle}\n\n${post.web_url}`,
       url: post.web_url,
       guid: post.uuid,
       author: Array.isArray(post.published_bylines)
