@@ -39,7 +39,6 @@ export default async (req, res) => {
 
   substackPosts.data.items.filter(post => post.audio_url).forEach(post => {
     console.log('post', post)
-    console.log('post.published_bylines', post.published_bylines)
     feed.addItem({
       title: `${post.publisher_name}: ${post.title}`,
       description: post.detail_view_subtitle,
