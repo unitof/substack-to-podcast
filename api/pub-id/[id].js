@@ -34,7 +34,7 @@ export default async (req, res) => {
 
   const firstPost = substackPosts.data.posts[0]
   const firstPublicationUser = firstPost.publishedBylines[0].publicationUsers.find(user => user.role == "admin").publication
-  const logoIsBucketeer = firstPublicationUser.logo_url.startsWith('https://bucketeer-')
+  const logoIsBucketeer = firstPublicationUser.logo_url?.startsWith('https://bucketeer-')
 
   const feed = new Podcast({
     title: firstPublicationUser.name,
