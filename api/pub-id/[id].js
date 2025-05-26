@@ -18,7 +18,6 @@ export default async (req, res) => {
 
   const reqParams = new URL('https://example.com' + req.url).searchParams // idk
   const publicationId = reqParams.get('id')
-  console.log(publicationId)
 
   const substackPosts = await axios.get(
     // page 0 = latest 12 posts
@@ -30,8 +29,8 @@ export default async (req, res) => {
     }
   )
 
-	console.log('FROM SUBSTACK:')
-	console.log(substackPosts.data) //debug
+	// console.log('FROM SUBSTACK:')
+	// console.log(substackPosts.data) //debug
 
   const firstPost = substackPosts.data.posts[0]
   const firstPublicationUser = firstPost.publishedBylines[0].publicationUsers.find(user => user.role == "admin").publication
