@@ -47,22 +47,21 @@ export default async (req, res) => {
     imageUrl: !useAuthorImage ? firstPublicationUser.logo_url : firstPost.publishedBylines[0].photo_url
   })
 
-  substackPosts.data.posts.filter(post => post.inboxItem?.audio_url).forEach(post => {
-    const inboxItem = post.inboxItem
+  substackPosts.data.posts.filter(post => post.audio_items?.length).forEach(post => {
     feed.addItem({
-      title: `${inboxItem.title}`,
-      description: `${inboxItem.detail_view_subtitle}\n\n${inboxItem.web_url}`,
-      url: inboxItem.web_url,
-      guid: inboxItem.uuid,
-      author: Array.isArray(inboxItem.published_bylines)
-        ? inboxItem.published_bylines[0]?.name
-        : inboxItem.publisher_name,
-      date: inboxItem.created_at,
+      title: post.title,
+      description: `${post.subtitle}\n\n${post.canonical_url}`,
+      url: post.canonical_url,
+      guid: post.id,
+      author: Array.isArray(post.published_bylines)
+        ? post.published_bylines[0]?.name
+        : post.publisher_name,
+      date: post.post_date,
       enclosure: {
-        url: inboxItem.audio_url,
+        url: post.audio_items[0].audio_url,
         type: 'audio/mpeg'
       },
-      image: inboxItem.cover_photo_url
+      image: post.cover_image
     })
   })
 
