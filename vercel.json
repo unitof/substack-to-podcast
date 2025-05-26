@@ -3,6 +3,10 @@
     {
       "source": "/",
       "destination": "README.md"
+    },
+    {
+      "source": "/:subdomain",
+      "destination": "/api/pub-subdomain/:subdomain"
     }
   ]
 }
