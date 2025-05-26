@@ -32,18 +32,19 @@ export default async (req, res) => {
 	// console.log('FROM SUBSTACK:')
 	// console.log(substackPosts.data) //debug
 
+  const logoIsBucketeer = firstPublicationUser.logo_url.startsWith('https://bucketeer-')
+
   const firstPost = substackPosts.data.posts[0]
   const firstPublicationUser = firstPost.publishedBylines[0].publicationUsers.find(user => user.role == "admin").publication
-
-  // Weird glitch with Numb at the Lodge's logo_url, fall back to author
-  const useAuthorImage = firstPublicationUser.logo_url == 'https://bucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com/public/images/75fb5a16-c295-4898-b7e3-9ab295cd3530_378x378.png'
 
   const feed = new Podcast({
     title: firstPublicationUser.name,
     description: firstPublicationUser.hero_text,
     author: firstPost.publishedBylines[0].name,
     siteUrl: 'https://substackwoofer.vercel.app',
-    imageUrl: !useAuthorImage ? firstPublicationUser.logo_url : firstPost.publishedBylines[0].photo_url
+    imageUrl: logoIsBucketeer
+      ? `https://substackcdn.com/image/fetch/${encodeURI(firstPublicationUser.logo_url)}` // bucketeer access restricted
+      : firstPublicationUser.logo_url
   })
 
   substackPosts.data.posts.filter(post => post.audio_items?.length).forEach(post => {
