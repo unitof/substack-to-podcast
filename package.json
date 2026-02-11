@@ -18,7 +18,9 @@
   },
   "scripts": {
     "test": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node --test test/smoke/deployment.test.mjs",
+    "coverage:smoke": "nyc --reporter=text --reporter=html npm run test:smoke"
   },
   "dependencies": {
     "axios": "^0.27.2",
@@ -27,6 +29,7 @@
   "devDependencies": {
     "@types/node": "^24.3.0",
     "@vercel/node": "^5.3.24",
+    "nyc": "^17.1.0",
     "typescript": "^5.9.2"
   }
 }
