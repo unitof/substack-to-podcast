@@ -1,6 +1,22 @@
 const axios = require('axios')
 import { Podcast } from 'podcast'
 
+function getFirstByline(post) {
+  if (!post) return null
+  if (Array.isArray(post.publishedBylines) && post.publishedBylines.length) {
+    return post.publishedBylines[0]
+  }
+  if (Array.isArray(post.published_bylines) && post.published_bylines.length) {
+    return post.published_bylines[0]
+  }
+  return null
+}
+
+function getPublisher(post) {
+  if (!post) return {}
+  return post.publication || post.publisher || {}
+}
+
 export default async (req, res) => {
   let substackSidCookie = ''
 
@@ -26,27 +42,29 @@ export default async (req, res) => {
     }
   )
 
-	// console.log('FROM SUBSTACK:')
-	// console.log(substackPosts.data) //debug
+  // console.log('FROM SUBSTACK:')
+  // console.log(substackPosts.data) //debug
+  const posts = Array.isArray(substackPosts.data?.items) ? substackPosts.data.items : []
 
   const feed = new Podcast({
     title: 'My Substack Audio Feed',
     description: 'Totally unofficial feed generated for personal use in podcast players',
     author: 'Jacob ¶. Ford',
     siteUrl: 'https://substackwoofer.vercel.app',
-    imageUrl: substackPosts.data.items[0].cover_photo_url // dumb but i want an image
+    imageUrl: posts[0]?.cover_photo_url || '' // dumb but i want an image
   })
 
-  substackPosts.data.items.filter(post => post.audio_url).forEach(post => {
+  posts.filter(post => post.audio_url).forEach(post => {
     console.log('post', post)
+    const byline = getFirstByline(post)
+    const publisher = getPublisher(post)
+    const publisherName = post.publisher_name || publisher.name || ''
     feed.addItem({
-      title: `${post.publisher_name}: ${post.title}`,
+      title: publisherName ? `${publisherName}: ${post.title}` : post.title,
       description: `${post.detail_view_subtitle}\n\n${post.web_url}`,
       url: post.web_url,
       guid: post.uuid,
-      author: Array.isArray(post.published_bylines)
-        ? post.published_bylines[0]?.name
-        : post.publisher_name,
+      author: byline?.name || publisherName,
       date: post.created_at,
       enclosure: {
         url: post.audio_url,

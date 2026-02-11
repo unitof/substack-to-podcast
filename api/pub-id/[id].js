@@ -1,6 +1,33 @@
 import axios from 'axios'
 import { Podcast } from 'podcast'
 
+function getFirstByline(post) {
+  if (!post) return null
+  if (Array.isArray(post.publishedBylines) && post.publishedBylines.length) {
+    return post.publishedBylines[0]
+  }
+  if (Array.isArray(post.published_bylines) && post.published_bylines.length) {
+    return post.published_bylines[0]
+  }
+  return null
+}
+
+function getPublicationFromPosts(posts) {
+  for (const post of posts) {
+    if (!post) continue
+
+    if (post.publication) return post.publication
+    if (post.publisher) return post.publisher
+
+    const byline = getFirstByline(post)
+    if (byline?.publication) return byline.publication
+
+    const adminPublication = byline?.publicationUsers?.find(user => user?.role === 'admin')?.publication
+    if (adminPublication) return adminPublication
+  }
+  return null
+}
+
 function logApiError(context, error, extra = {}) {
   console.error(context, {
     ...extra,
@@ -56,29 +83,51 @@ export default async (req, res) => {
     // console.log(substackPosts.data) //debug
     const posts = Array.isArray(substackPosts.data?.posts) ? substackPosts.data.posts : []
     const firstPost = posts[0]
-    const firstByline = firstPost?.publishedBylines?.[0]
-    const firstPublicationUser = firstByline?.publicationUsers?.find(user => user.role == 'admin')?.publication
-    const logoIsBucketeer = firstPublicationUser?.logo_url?.startsWith('https://bucketeer-') || false
+    const firstByline = getFirstByline(firstPost)
+
+    // Substack's publication endpoint is the most stable source for feed-level metadata.
+    let publicationInfo = null
+    try {
+      const publicationResponse = await axios.get(
+        `https://api.substack.com/api/v1/publications/${publicationId}`,
+        {
+          headers: {
+            Cookie: substackSidCookie
+          }
+        }
+      )
+      publicationInfo = publicationResponse.data
+    } catch (error) {
+      console.warn('Failed to fetch publication details, using post-level fallback', {
+        publicationId,
+        message: error?.message,
+        status: error?.response?.status
+      })
+    }
+
+    const fallbackPublication = getPublicationFromPosts(posts)
+    const publication = publicationInfo || fallbackPublication || {}
+    const publicationLogoUrl = publication.logo_url || publication.logoUrl || ''
+    const logoIsBucketeer = publicationLogoUrl.startsWith('https://bucketeer-')
 
     const feed = new Podcast({
-      title: firstPublicationUser?.name || `Substack ${publicationId}`,
-      description: firstPublicationUser?.hero_text || '',
-      author: firstByline?.name || '',
+      title: publication?.name || publication?.title || firstPost?.publisher_name || `Substack ${publicationId}`,
+      description: publication?.hero_text || publication?.description || '',
+      author: firstByline?.name || publication?.author_name || publication?.name || '',
       siteUrl: 'https://substackwoofer.vercel.app',
       imageUrl: logoIsBucketeer
-        ? `https://substackcdn.com/image/fetch/${encodeURIComponent(firstPublicationUser.logo_url)}` // bucketeer access restricted
-        : (firstPublicationUser?.logo_url || '')
+        ? `https://substackcdn.com/image/fetch/${encodeURIComponent(publicationLogoUrl)}` // bucketeer access restricted
+        : publicationLogoUrl
     })
 
     posts.filter(post => post.audio_items?.length).forEach(post => {
+      const byline = getFirstByline(post)
       feed.addItem({
         title: post.title,
         description: `${post.subtitle}\n\n${post.canonical_url}`,
         url: post.canonical_url,
         guid: post.id,
-        author: Array.isArray(post.published_bylines)
-          ? post.published_bylines[0]?.name
-          : post.publisher_name,
+        author: byline?.name || post.publisher_name || publication?.name || '',
         date: post.post_date,
         enclosure: {
           url: post.audio_items[0].audio_url,
