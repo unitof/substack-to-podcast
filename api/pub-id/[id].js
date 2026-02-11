@@ -33,13 +33,13 @@ export default async (req, res) => {
 	// console.log(substackPosts.data) //debug
 
   const firstPost = substackPosts.data.posts[0]
-  const firstPublicationUser = firstPost.publishedBylines[0].publicationUsers.find(user => user.role == "admin").publication
+  const firstPublicationUser = firstPost.publishedBylines[0]?.publicationUsers?.find(user => user.role == "admin").publication
   const logoIsBucketeer = firstPublicationUser.logo_url?.startsWith('https://bucketeer-')
 
   const feed = new Podcast({
-    title: firstPublicationUser.name,
-    description: firstPublicationUser.hero_text,
-    author: firstPost.publishedBylines[0].name,
+    title: firstPublicationUser?.name || '',
+    description: firstPublicationUser?.hero_text || '',
+    author: firstPost?.publishedBylines[0].name || '',
     siteUrl: 'https://substackwoofer.vercel.app',
     imageUrl: logoIsBucketeer
       ? `https://substackcdn.com/image/fetch/${encodeURIComponent(firstPublicationUser.logo_url)}` // bucketeer access restricted
