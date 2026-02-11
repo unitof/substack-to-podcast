@@ -12,15 +12,22 @@
   },
   "license": "ISC",
   "author": "Jacob Ford",
-  "main": "api/feed.js",
+  "main": "api/feed.ts",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "test": "next lint"
+    "test": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node --test test/smoke/deployment.test.mjs"
   },
   "dependencies": {
     "axios": "^0.27.2",
     "podcast": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@vercel/node": "^5.3.24",
+    "typescript": "^5.9.2"
   }
 }
