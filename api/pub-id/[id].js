@@ -43,7 +43,7 @@ export default async (req, res) => {
     siteUrl: 'https://substackwoofer.vercel.app',
     imageUrl: logoIsBucketeer
       ? `https://substackcdn.com/image/fetch/${encodeURIComponent(firstPublicationUser.logo_url)}` // bucketeer access restricted
-      : firstPublicationUser.logo_url
+      : firstPublicationUser.logo_url || ''
   })
 
   substackPosts.data.posts.filter(post => post.audio_items?.length).forEach(post => {
