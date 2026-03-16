@@ -259,7 +259,7 @@ async function buildPublicationFeedXml(
 
     feed.addItem({
       title: post.title || '',
-      description: `${post.description && '\n\n'}${post.canonical_url || ''}`,
+      description: `${post.subtitle}\n\n${post.canonical_url || ''}`,
       url: post.canonical_url || '',
       guid: post.id || post.canonical_url || undefined,
       author: getFirstByline(post)?.name || post.publisher_name || publication?.name || '',
