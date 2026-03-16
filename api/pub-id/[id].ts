@@ -29,6 +29,7 @@ type PublicationPost = {
   id?: string
   title?: string
   subtitle?: string
+  description?: string
   canonical_url?: string
   post_date?: string
   cover_image?: string
