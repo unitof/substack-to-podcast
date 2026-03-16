@@ -2,15 +2,33 @@ import axios, { type AxiosResponse } from 'axios'
 
 type LoginResponse = AxiosResponse
 
+export type SubstackLoginCredentials = {
+  email: string
+  password: string
+}
+
 const LOGIN_URL = 'https://substack.com/api/v1/login'
 const LOGIN_RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNABORTED', 'ECONNRESET'])
+
+export function normalizeSubstackCookieHeader(rawCookie = ''): string {
+  return rawCookie.trim().replace(/^['"]|['"]$/g, '')
+}
+
+export function getCookieHeaderFromSetCookies(cookies: string[] = []): string {
+  return cookies
+    .map(cookie => cookie.split(';')[0]?.trim())
+    .filter(Boolean)
+    .join('; ')
+}
 
 function shouldRetryLogin(error: unknown): boolean {
   const errorCode = (error as { code?: string } | undefined)?.code
   return Boolean(errorCode && LOGIN_RETRYABLE_CODES.has(errorCode))
 }
 
-export default async function getLoginResponse(): Promise<LoginResponse> {
+export default async function getLoginResponse(
+  credentials: SubstackLoginCredentials
+): Promise<LoginResponse> {
   let lastError: unknown
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -18,10 +36,10 @@ export default async function getLoginResponse(): Promise<LoginResponse> {
       return await axios.post(
         LOGIN_URL,
         {
-          email: process.env.SUBSTACK_EMAIL,
+          email: credentials.email,
           for_pub: '',
           redirect: '/',
-          password: process.env.SUBSTACK_PASSWORD,
+          password: credentials.password,
           captcha_response: null
         },
         {

@@ -1,6 +1,12 @@
 import axios from 'axios'
 import { Podcast } from 'podcast'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import {
+  getSubstackCookieForRequest,
+  invalidateCachedSubstackAuth,
+  isSubstackAuthError,
+  setBasicAuthChallengeHeader
+} from '../lib/substack-auth'
 
 type FeedPost = {
   audio_url?: string
@@ -43,39 +49,6 @@ function getFirstByline(post?: FeedPost): { name?: string } | null {
 function getPublisher(post?: FeedPost): { name?: string } {
   if (!post) return {}
   return post.publication || post.publisher || {}
-}
-
-function normalizeSubstackCookieHeader(rawCookie = ''): string {
-  return rawCookie.trim().replace(/^['"]|['"]$/g, '')
-}
-
-function getCookieHeaderFromSetCookies(cookies: string[] = []): string {
-  return cookies
-    .map(cookie => cookie.split(';')[0]?.trim())
-    .filter(Boolean)
-    .join('; ')
-}
-
-function getRequestOrigin(req: VercelRequest): string {
-  const forwardedHostHeader = req.headers['x-forwarded-host']
-  const forwardedProtoHeader = req.headers['x-forwarded-proto']
-  const host = Array.isArray(forwardedHostHeader)
-    ? forwardedHostHeader[0]
-    : (forwardedHostHeader || req.headers.host || process.env.VERCEL_URL || '')
-
-  if (!host) {
-    throw new Error('Could not determine request host for Substack login')
-  }
-
-  const forwardedProto = Array.isArray(forwardedProtoHeader) ? forwardedProtoHeader[0] : forwardedProtoHeader
-  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https')
-
-  return `${protocol}://${host}`
-}
-
-async function fetchLoginCookie(req: VercelRequest): Promise<string> {
-  const loginCookies = await axios.get<string[]>(`${getRequestOrigin(req)}/api/login`)
-  return getCookieHeaderFromSetCookies(loginCookies.data)
 }
 
 function isUnauthorizedError(error: unknown): boolean {
@@ -136,36 +109,20 @@ async function buildFeedXml(substackSidCookie: string): Promise<string> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
-    let substackCookie = ''
-    let usingEnvCookie = false
-
     console.log(req.headers['user-agent'])
-
-    if (process.env.SUBSTACK_COOKIE) {
-      // Useful during development to avoid login throttling while iterating.
-      console.warn('Using process.env.SUBSTACK_COOKIE to avoid SS ratelimits')
-      substackCookie = normalizeSubstackCookieHeader(process.env.SUBSTACK_COOKIE)
-      usingEnvCookie = Boolean(substackCookie)
-    } else {
-      // This route returns cached login cookies so we avoid logging in on every request.
-      substackCookie = await fetchLoginCookie(req)
-    }
-
-    if (!substackCookie) {
-      console.error('Missing Substack cookie header for feed generation')
-      res.status(500).json({ error: 'Could not authenticate with Substack' })
-      return
-    }
+    const substackAuth = await getSubstackCookieForRequest(req)
 
     try {
-      const xml = await buildFeedXml(substackCookie)
+      const xml = await buildFeedXml(substackAuth.cookieHeader)
       res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
       res.end(xml)
       return
     } catch (error: unknown) {
-      if (usingEnvCookie && isUnauthorizedError(error)) {
-        console.warn('SUBSTACK_COOKIE was rejected, retrying feed with /api/login cookie')
-        const xml = await buildFeedXml(await fetchLoginCookie(req))
+      if (isUnauthorizedError(error)) {
+        console.warn('Substack cookie was rejected, retrying feed with a fresh login')
+        invalidateCachedSubstackAuth(req)
+        const refreshedAuth = await getSubstackCookieForRequest(req, { forceFreshLogin: true })
+        const xml = await buildFeedXml(refreshedAuth.cookieHeader)
         res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
         res.end(xml)
         return
@@ -174,6 +131,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       throw error
     }
   } catch (error: unknown) {
+    if (isSubstackAuthError(error)) {
+      setBasicAuthChallengeHeader(res)
+      res.status(error.statusCode).json({ error: error.message })
+      return
+    }
+
     const normalizedError = error as ApiErrorShape
     console.error('Feed generation failed', {
       message: normalizedError?.message,

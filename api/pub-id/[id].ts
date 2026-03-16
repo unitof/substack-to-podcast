@@ -1,6 +1,12 @@
 import axios from 'axios'
 import { Podcast } from 'podcast'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import {
+  getSubstackCookieForRequest,
+  invalidateCachedSubstackAuth,
+  isSubstackAuthError,
+  setBasicAuthChallengeHeader
+} from '../../lib/substack-auth'
 
 type PublicationUser = {
   role?: string
@@ -115,39 +121,6 @@ function logApiError(context: string, error: ApiErrorShape, extra: Record<string
 }
 
 const MAX_PUBLICATION_POST_PAGES = 500
-
-function normalizeSubstackCookieHeader(rawCookie = ''): string {
-  return rawCookie.trim().replace(/^['"]|['"]$/g, '')
-}
-
-function getCookieHeaderFromSetCookies(cookies: string[] = []): string {
-  return cookies
-    .map(cookie => cookie.split(';')[0]?.trim())
-    .filter(Boolean)
-    .join('; ')
-}
-
-function getRequestOrigin(req: VercelRequest): string {
-  const forwardedHostHeader = req.headers['x-forwarded-host']
-  const forwardedProtoHeader = req.headers['x-forwarded-proto']
-  const host = Array.isArray(forwardedHostHeader)
-    ? forwardedHostHeader[0]
-    : (forwardedHostHeader || req.headers.host || process.env.VERCEL_URL || '')
-
-  if (!host) {
-    throw new Error('Could not determine request host for Substack login')
-  }
-
-  const forwardedProto = Array.isArray(forwardedProtoHeader) ? forwardedProtoHeader[0] : forwardedProtoHeader
-  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https')
-
-  return `${protocol}://${host}`
-}
-
-async function fetchLoginCookie(req: VercelRequest): Promise<string> {
-  const loginCookies = await axios.get<string[]>(`${getRequestOrigin(req)}/api/login`)
-  return getCookieHeaderFromSetCookies(loginCookies.data)
-}
 
 function isUnauthorizedError(error: unknown): boolean {
   return (error as ApiErrorShape | undefined)?.response?.status === 401
@@ -278,27 +251,6 @@ async function buildPublicationFeedXml(
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
-    let substackCookie = ''
-    let usingEnvCookie = false
-
-    console.log(req.headers['user-agent'])
-
-    if (process.env.SUBSTACK_COOKIE) {
-      // Useful during development to avoid login throttling while iterating.
-      console.warn('Using process.env.SUBSTACK_COOKIE to avoid SS ratelimits')
-      substackCookie = normalizeSubstackCookieHeader(process.env.SUBSTACK_COOKIE)
-      usingEnvCookie = Boolean(substackCookie)
-    } else {
-      // This route returns cached login cookies so we avoid logging in on every request.
-      substackCookie = await fetchLoginCookie(req)
-    }
-
-    if (!substackCookie) {
-      console.error('Missing Substack cookie header for publication feed generation')
-      res.status(500).json({ error: 'Could not authenticate with Substack' })
-      return
-    }
-
     const reqParams = new URL('https://example.com' + req.url).searchParams
     const publicationId = reqParams.get('id')
 
@@ -307,15 +259,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
+    console.log(req.headers['user-agent'])
+    const substackAuth = await getSubstackCookieForRequest(req)
+
     try {
-      const xml = await buildPublicationFeedXml(publicationId, substackCookie)
+      const xml = await buildPublicationFeedXml(publicationId, substackAuth.cookieHeader)
       res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
       res.end(xml)
       return
     } catch (error: unknown) {
-      if (usingEnvCookie && isUnauthorizedError(error)) {
-        console.warn('SUBSTACK_COOKIE was rejected, retrying with /api/login cookie', { publicationId })
-        const xml = await buildPublicationFeedXml(publicationId, await fetchLoginCookie(req))
+      if (isUnauthorizedError(error)) {
+        console.warn('Substack cookie was rejected, retrying publication feed with a fresh login', { publicationId })
+        invalidateCachedSubstackAuth(req)
+        const refreshedAuth = await getSubstackCookieForRequest(req, { forceFreshLogin: true })
+        const xml = await buildPublicationFeedXml(publicationId, refreshedAuth.cookieHeader)
         res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
         res.end(xml)
         return
@@ -324,6 +281,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       throw error
     }
   } catch (error: unknown) {
+    if (isSubstackAuthError(error)) {
+      setBasicAuthChallengeHeader(res)
+      res.status(error.statusCode).json({ error: error.message })
+      return
+    }
+
     const normalizedError = error as ApiErrorShape
     logApiError('Publication feed generation failed', normalizedError, { path: req?.url })
     res.status(normalizedError?.response?.status || 502).json({ error: 'Failed to build publication feed' })
