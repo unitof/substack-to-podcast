@@ -58,6 +58,7 @@ type PublicationPost = {
 
 type PublicationPostsResponse = {
   posts?: PublicationPost[]
+  more?: boolean
 }
 
 type ApiErrorShape = {
@@ -104,6 +105,50 @@ function logApiError(context: string, error: ApiErrorShape, extra: Record<string
   })
 }
 
+const MAX_PUBLICATION_POST_PAGES = 500
+
+async function fetchAllPublicationPosts(
+  publicationId: string,
+  substackSidCookie: string
+): Promise<PublicationPost[]> {
+  const posts: PublicationPost[] = []
+  const seenPosts = new Set<string>()
+
+  for (let page = 0; page < MAX_PUBLICATION_POST_PAGES; page += 1) {
+    const substackPosts = await axios.get<PublicationPostsResponse>(
+      `https://api.substack.com/api/v1/publications/${publicationId}/posts?page=${page}&includeCrossPosts=true`,
+      {
+        headers: {
+          Cookie: substackSidCookie
+        }
+      }
+    )
+
+    const pagePosts = Array.isArray(substackPosts.data?.posts) ? substackPosts.data.posts : []
+
+    pagePosts.forEach((post, index) => {
+      const postKey = post.id || post.canonical_url || `page-${page}-index-${index}`
+      if (seenPosts.has(postKey)) {
+        return
+      }
+
+      seenPosts.add(postKey)
+      posts.push(post)
+    })
+
+    if (!substackPosts.data?.more || pagePosts.length === 0) {
+      return posts
+    }
+  }
+
+  console.warn('Reached publication pagination safety cap', {
+    publicationId,
+    maxPages: MAX_PUBLICATION_POST_PAGES
+  })
+
+  return posts
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     let substackSidCookie = ''
@@ -138,17 +183,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return
     }
 
-    const substackPosts = await axios.get<PublicationPostsResponse>(
-      `https://api.substack.com/api/v1/publications/${publicationId}/posts?page=0&includeCrossPosts=true`,
-      {
-        headers: {
-          Cookie: substackSidCookie
-        }
-      }
-    )
-
-    // Substack post payloads vary a lot; these defaults prevent runtime crashes.
-    const posts = Array.isArray(substackPosts.data?.posts) ? substackPosts.data.posts : []
+    // Walk every publication page so feed consumers get the complete post history.
+    const posts = await fetchAllPublicationPosts(publicationId, substackSidCookie)
     const firstPost = posts[0]
     const firstByline = getFirstByline(firstPost)
 
