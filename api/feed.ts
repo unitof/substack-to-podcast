@@ -21,6 +21,14 @@ type InboxResponse = {
   items?: FeedPost[]
 }
 
+type ApiErrorShape = {
+  response?: {
+    status?: number
+    data?: unknown
+  }
+  message?: string
+}
+
 function getFirstByline(post?: FeedPost): { name?: string } | null {
   if (!post) return null
   if (Array.isArray(post.publishedBylines) && post.publishedBylines.length) {
@@ -37,21 +45,44 @@ function getPublisher(post?: FeedPost): { name?: string } {
   return post.publication || post.publisher || {}
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  let substackSidCookie = ''
+function normalizeSubstackCookieHeader(rawCookie = ''): string {
+  return rawCookie.trim().replace(/^['"]|['"]$/g, '')
+}
 
-  console.log(req.headers['user-agent'])
+function getCookieHeaderFromSetCookies(cookies: string[] = []): string {
+  return cookies
+    .map(cookie => cookie.split(';')[0]?.trim())
+    .filter(Boolean)
+    .join('; ')
+}
 
-  if (process.env.SUBSTACK_SID) {
-    // Useful during development to avoid login throttling while iterating.
-    console.warn('Using process.env.SUBSTACK_SID to avoid SS ratelimits')
-    substackSidCookie = process.env.SUBSTACK_SID
-  } else {
-    // This route returns cached login cookies so we avoid logging in on every request.
-    const loginCookies = await axios.get<string[]>(`http://${process.env.VERCEL_URL}/api/login`)
-    substackSidCookie = loginCookies.data.find(cookie => cookie.startsWith('substack.sid=')) || ''
+function getRequestOrigin(req: VercelRequest): string {
+  const forwardedHostHeader = req.headers['x-forwarded-host']
+  const forwardedProtoHeader = req.headers['x-forwarded-proto']
+  const host = Array.isArray(forwardedHostHeader)
+    ? forwardedHostHeader[0]
+    : (forwardedHostHeader || req.headers.host || process.env.VERCEL_URL || '')
+
+  if (!host) {
+    throw new Error('Could not determine request host for Substack login')
   }
 
+  const forwardedProto = Array.isArray(forwardedProtoHeader) ? forwardedProtoHeader[0] : forwardedProtoHeader
+  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https')
+
+  return `${protocol}://${host}`
+}
+
+async function fetchLoginCookie(req: VercelRequest): Promise<string> {
+  const loginCookies = await axios.get<string[]>(`${getRequestOrigin(req)}/api/login`)
+  return getCookieHeaderFromSetCookies(loginCookies.data)
+}
+
+function isUnauthorizedError(error: unknown): boolean {
+  return (error as ApiErrorShape | undefined)?.response?.status === 401
+}
+
+async function buildFeedXml(substackSidCookie: string): Promise<string> {
   const substackPosts = await axios.get<InboxResponse>(
     // page 0 = latest 12 posts
     'https://api.substack.com/api/v1/inbox_v2',
@@ -100,6 +131,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     } as any)
   })
 
-  res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
-  res.end(feed.buildXml({ indent: '\t' }))
+  return feed.buildXml({ indent: '\t' })
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  try {
+    let substackCookie = ''
+    let usingEnvCookie = false
+
+    console.log(req.headers['user-agent'])
+
+    if (process.env.SUBSTACK_COOKIE) {
+      // Useful during development to avoid login throttling while iterating.
+      console.warn('Using process.env.SUBSTACK_COOKIE to avoid SS ratelimits')
+      substackCookie = normalizeSubstackCookieHeader(process.env.SUBSTACK_COOKIE)
+      usingEnvCookie = Boolean(substackCookie)
+    } else {
+      // This route returns cached login cookies so we avoid logging in on every request.
+      substackCookie = await fetchLoginCookie(req)
+    }
+
+    if (!substackCookie) {
+      console.error('Missing Substack cookie header for feed generation')
+      res.status(500).json({ error: 'Could not authenticate with Substack' })
+      return
+    }
+
+    try {
+      const xml = await buildFeedXml(substackCookie)
+      res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
+      res.end(xml)
+      return
+    } catch (error: unknown) {
+      if (usingEnvCookie && isUnauthorizedError(error)) {
+        console.warn('SUBSTACK_COOKIE was rejected, retrying feed with /api/login cookie')
+        const xml = await buildFeedXml(await fetchLoginCookie(req))
+        res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8')
+        res.end(xml)
+        return
+      }
+
+      throw error
+    }
+  } catch (error: unknown) {
+    const normalizedError = error as ApiErrorShape
+    console.error('Feed generation failed', {
+      message: normalizedError?.message,
+      status: normalizedError?.response?.status,
+      responseData: normalizedError?.response?.data
+    })
+    res.status(normalizedError?.response?.status || 502).json({ error: 'Failed to build feed' })
+  }
 }
